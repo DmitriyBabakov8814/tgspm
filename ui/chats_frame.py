@@ -92,49 +92,54 @@ class ChatsFrame(ctk.CTkFrame):
                 w.destroy()
             self._checks = {}
             chats = db.get_chats()
-        active = sum(1 for c in chats if c["is_active"])
-        self.stats.configure(text=f"Всего: {len(chats)}  |  Активных: {active}")
-        for c in chats:
-            row = ctk.CTkFrame(self.scroll,
-                fg_color="#13151c" if c["is_active"] else "#0f1117",
-                corner_radius=8)
-            row.pack(fill="x", pady=2)
-            var = ctk.BooleanVar()
-            self._checks[c["id"]] = var
-            ctk.CTkCheckBox(row, text="", variable=var, width=30,
-                checkbox_width=18, checkbox_height=18,
-                fg_color="#2563eb", hover_color="#1d4ed8"
-            ).pack(side="left", padx=6, pady=8)
+            active = sum(1 for c in chats if c["is_active"])
+            self.stats.configure(text=f"Всего: {len(chats)}  |  Активных: {active}")
+            for c in chats:
+                row = ctk.CTkFrame(self.scroll,
+                    fg_color="#13151c" if c["is_active"] else "#0f1117",
+                    corner_radius=8)
+                row.pack(fill="x", pady=2)
+                var = ctk.BooleanVar()
+                self._checks[c["id"]] = var
+                ctk.CTkCheckBox(row, text="", variable=var, width=30,
+                    checkbox_width=18, checkbox_height=18,
+                    fg_color="#2563eb", hover_color="#1d4ed8"
+                ).pack(side="left", padx=6, pady=8)
 
-            title = c.get("title") or "—"
-            for text, w in [
-                (title[:28], 200),
-                (f"@{c['username']}" if c.get("username") else str(c.get("chat_id") or "—"), 160),
-                (c.get("chat_type") or "—", 80),
-                (str(c.get("members_count") or 0), 100),
-            ]:
-                ctk.CTkLabel(row, text=text, width=w, anchor="w",
-                    font=ctk.CTkFont("Helvetica", 12),
-                    text_color="#c9d1e0" if c["is_active"] else "#4a5568"
-                ).pack(side="left", padx=4, pady=8)
+                title = c.get("title") or "—"
+                for text, w in [
+                    (title[:28], 200),
+                    (f"@{c['username']}" if c.get("username") else str(c.get("chat_id") or "—"), 160),
+                    (c.get("chat_type") or "—", 80),
+                    (str(c.get("members_count") or 0), 100),
+                ]:
+                    ctk.CTkLabel(row, text=text, width=w, anchor="w",
+                        font=ctk.CTkFont("Helvetica", 12),
+                        text_color="#c9d1e0" if c["is_active"] else "#4a5568"
+                    ).pack(side="left", padx=4, pady=8)
 
-            tog_text = "Вкл" if c["is_active"] else "Выкл"
-            tog_color = "#1a3a1a" if c["is_active"] else "#1e2130"
-            _btn(row, tog_text, color=tog_color, hover="#2a2f45", width=50, h=28,
-                 command=lambda cid=c["id"]: self._toggle(cid)).pack(side="left", padx=4)
-            _btn(row, "✕", color="#7f1d1d", hover="#991b1b", width=32, h=28,
-                 command=lambda cid=c["id"]: self._delete(cid)).pack(side="left", padx=2)
+                tog_text = "Вкл" if c["is_active"] else "Выкл"
+                tog_color = "#1a3a1a" if c["is_active"] else "#1e2130"
+                _btn(row, tog_text, color=tog_color, hover="#2a2f45", width=50, h=28,
+                     command=lambda cid=c["id"]: self._toggle(cid)).pack(side="left", padx=4)
+                _btn(row, "✕", color="#7f1d1d", hover="#991b1b", width=32, h=28,
+                     command=lambda cid=c["id"]: self._delete(cid)).pack(side="left", padx=2)
+        except Exception as exc:
+            self.app.report_error("Ошибка загрузки чатов", exc)
 
     def _add(self):
-        username = self.e_username.get().strip().lstrip("@")
-        title = self.e_title.get().strip()
-        if not username:
-            messagebox.showerror("Ошибка", "Введите username или ID")
-            return
-        db.add_chat(username=username, title=title or username, chat_type=self.type_var.get())
-        self.e_username.delete(0, "end")
-        self.e_title.delete(0, "end")
-        self._load()
+        try:
+            username = self.e_username.get().strip().lstrip("@")
+            title = self.e_title.get().strip()
+            if not username:
+                messagebox.showerror("Ошибка", "Введите username или ID")
+                return
+            db.add_chat(username=username, title=title or username, chat_type=self.type_var.get())
+            self.e_username.delete(0, "end")
+            self.e_title.delete(0, "end")
+            self._load()
+        except Exception as exc:
+            self.app.report_error("Ошибка добавления чата", exc)
 
     def _search_tg(self):
         accounts = db.get_accounts(active_only=True)

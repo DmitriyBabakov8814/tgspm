@@ -10,10 +10,9 @@ from pathlib import Path
 
 from data import database as db
 from core.tg_client import TGClient
-from core.my_telegram_api import MyTelegramOrgClient, MyTelegramOrgError
+from core.my_telegram_api import MyTelegramOrgClient
 from core.errors import humanize_error
 from ui.widgets import card, lbl, ent, btn
-from ui.safe import safe_ui
 
 SESSION_DIR = Path(__file__).parent.parent / "sessions"
 SESSION_DIR.mkdir(exist_ok=True)

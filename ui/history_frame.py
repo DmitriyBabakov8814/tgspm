@@ -91,65 +91,71 @@ class HistoryFrame(ctk.CTkFrame):
         self._load_campaigns()
 
     def _load_campaigns(self):
-        for w in self.camp_scroll.winfo_children():
-            w.destroy()
-        campaigns = db.get_campaigns()
-        for c in campaigns:
-            row = ctk.CTkFrame(self.camp_scroll, fg_color="#13151c", corner_radius=8)
-            row.pack(fill="x", pady=2)
-            row.bind("<Button-1>", lambda e, cid=c["id"], cn=c: self._show_logs(cn))
+        try:
+            for w in self.camp_scroll.winfo_children():
+                w.destroy()
+            campaigns = db.get_campaigns()
+            for c in campaigns:
+                row = ctk.CTkFrame(self.camp_scroll, fg_color="#13151c", corner_radius=8)
+                row.pack(fill="x", pady=2)
+                row.bind("<Button-1>", lambda e, cid=c["id"], cn=c: self._show_logs(cn))
 
-            _label(row, (c.get("name") or "—")[:18], size=12, color="#c9d1e0"
-                   ).pack(side="left", padx=8, pady=8)
+                _label(row, (c.get("name") or "—")[:18], size=12, color="#c9d1e0"
+                       ).pack(side="left", padx=8, pady=8)
 
-            type_text = TYPE_LABELS.get(c.get("campaign_type") or "", c.get("campaign_type") or "—")
-            _label(row, type_text, size=11, color="#4a5568"
-                   ).pack(side="left", padx=4)
+                type_text = TYPE_LABELS.get(c.get("campaign_type") or "", c.get("campaign_type") or "—")
+                _label(row, type_text, size=11, color="#4a5568"
+                       ).pack(side="left", padx=4)
 
-            status = c.get("status") or "draft"
-            _label(row, status, size=11, color=STATUS_COLORS.get(status, "#4a5568")
-                   ).pack(side="left", padx=8)
+                status = c.get("status") or "draft"
+                _label(row, status, size=11, color=STATUS_COLORS.get(status, "#4a5568")
+                       ).pack(side="left", padx=8)
 
-            sent = c.get("sent_count") or 0
-            failed = c.get("failed_count") or 0
-            _label(row, f"{sent}/{failed}", size=11, color="#4a5568"
-                   ).pack(side="left", padx=4)
+                sent = c.get("sent_count") or 0
+                failed = c.get("failed_count") or 0
+                _label(row, f"{sent}/{failed}", size=11, color="#4a5568"
+                       ).pack(side="left", padx=4)
 
-            _btn(row, "▶", color="#1e2130", hover="#2a2f45", width=32, h=28,
-                 command=lambda cn=c: self._show_logs(cn)
-                 ).pack(side="right", padx=4, pady=4)
+                _btn(row, "▶", color="#1e2130", hover="#2a2f45", width=32, h=28,
+                     command=lambda cn=c: self._show_logs(cn)
+                     ).pack(side="right", padx=4, pady=4)
+        except Exception as exc:
+            self.app.report_error("Ошибка загрузки истории", exc)
 
     def _show_logs(self, campaign):
-        self._selected_campaign = campaign
-        name = campaign.get("name") or "—"
-        status = campaign.get("status") or "—"
-        sent = campaign.get("sent_count") or 0
-        failed = campaign.get("failed_count") or 0
-        total = campaign.get("total_targets") or 0
-        ctype = TYPE_LABELS.get(campaign.get("campaign_type") or "", "—")
-        created = (campaign.get("created_at") or "")[:16]
+        try:
+            self._selected_campaign = campaign
+            name = campaign.get("name") or "—"
+            status = campaign.get("status") or "—"
+            sent = campaign.get("sent_count") or 0
+            failed = campaign.get("failed_count") or 0
+            total = campaign.get("total_targets") or 0
+            ctype = TYPE_LABELS.get(campaign.get("campaign_type") or "", "—")
+            created = (campaign.get("created_at") or "")[:16]
 
-        self.info_name.configure(text=f"{name}  [{status.upper()}]",
-                                  text_color=STATUS_COLORS.get(status, "#e2e8f0"))
-        self.info_stats.configure(
-            text=f"{ctype}  |  Всего: {total}  |  ✓ {sent}  |  ✗ {failed}  |  {created}"
-        )
+            self.info_name.configure(text=f"{name}  [{status.upper()}]",
+                                      text_color=STATUS_COLORS.get(status, "#e2e8f0"))
+            self.info_stats.configure(
+                text=f"{ctype}  |  Всего: {total}  |  ✓ {sent}  |  ✗ {failed}  |  {created}"
+            )
 
-        logs = db.get_campaign_logs(campaign["id"])
-        self.log_box.configure(state="normal")
-        self.log_box.delete("1.0", "end")
-        for log in logs:
-            ts = (log.get("sent_at") or "")[:19]
-            target = log.get("target") or "—"
-            s = log.get("status") or "—"
-            err = log.get("error_text") or ""
-            icon = "✓" if s == "ok" else "✗"
-            line = f"{ts}  {icon}  {target}"
-            if err:
-                line += f"  →  {err}"
-            self.log_box.insert("end", line + "\n")
-        self.log_box.configure(state="disabled")
-        self.log_box.see("end")
+            logs = db.get_campaign_logs(campaign["id"])
+            self.log_box.configure(state="normal")
+            self.log_box.delete("1.0", "end")
+            for log in logs:
+                ts = (log.get("sent_at") or "")[:19]
+                target = log.get("target") or "—"
+                s = log.get("status") or "—"
+                err = log.get("error_text") or ""
+                icon = "✓" if s == "ok" else "✗"
+                line = f"{ts}  {icon}  {target}"
+                if err:
+                    line += f"  →  {err}"
+                self.log_box.insert("end", line + "\n")
+            self.log_box.configure(state="disabled")
+            self.log_box.see("end")
+        except Exception as exc:
+            self.app.report_error("Ошибка загрузки лога", exc)
 
     def on_show(self):
         self._load_campaigns()
