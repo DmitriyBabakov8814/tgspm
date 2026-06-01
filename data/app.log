@@ -8,3 +8,122 @@ Traceback (most recent call last):
     ~~~~~~~~~~~~^^^^^^^^^^^^^
 _tkinter.TclError: bad argument "<function run_async.<locals>._thread.<locals>.<lambda> at 0x0000025E26C11B10>": must be cancel, idle, info, or an integer
 
+2026-06-02 01:02:12,771 [ERROR] tgsender: main: cannot use geometry manager pack inside .!ctkframe2.!lolzframe.!ctktabview.!ctkframe2.!ctkframe.!canvas.!ctkscrollableframe.!ctkframe.!ctkframe.!ctkframe which already has slaves managed by grid
+Traceback (most recent call last):
+  File "C:\Users\Dima\Desktop\tg_sender\main.py", line 75, in <module>
+    app = App()
+  File "C:\Users\Dima\Desktop\tg_sender\ui\app.py", line 45, in __init__
+    self._build_ui()
+    ~~~~~~~~~~~~~~^^
+  File "C:\Users\Dima\Desktop\tg_sender\ui\app.py", line 131, in _build_ui
+    6: LolzFrame(self.content, self),
+       ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dima\Desktop\tg_sender\ui\lolz_frame.py", line 28, in __init__
+    self._build()
+    ~~~~~~~~~~~^^
+  File "C:\Users\Dima\Desktop\tg_sender\ui\lolz_frame.py", line 71, in _build
+    self._build_quick_search(self.main_tabs.tab("🔍  Быстрый поиск"))
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dima\Desktop\tg_sender\ui\lolz_frame.py", line 305, in _build_quick_search
+    w.pack(fill="x")
+    ~~~~~~^^^^^^^^^^
+  File "C:\Users\Dima\AppData\Local\Programs\Python\Python314\Lib\site-packages\customtkinter\windows\widgets\core_widget_classes\ctk_base_class.py", line 298, in pack
+    return super().pack(**self._apply_argument_scaling(kwargs))
+           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dima\AppData\Local\Programs\Python\Python314\Lib\tkinter\__init__.py", line 2621, in pack_configure
+    self.tk.call(
+    ~~~~~~~~~~~~^
+          ('pack', 'configure', self._w)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+          + self._options(cnf, kw))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+_tkinter.TclError: cannot use geometry manager pack inside .!ctkframe2.!lolzframe.!ctktabview.!ctkframe2.!ctkframe.!canvas.!ctkscrollableframe.!ctkframe.!ctkframe.!ctkframe which already has slaves managed by grid
+
+2026-06-02 01:03:44,585 [ERROR] tgsender: main: cannot use geometry manager pack inside .!ctkframe2.!lolzframe.!ctktabview.!ctkframe2.!ctkframe.!canvas.!ctkscrollableframe.!ctkframe.!ctkframe.!ctkframe which already has slaves managed by grid
+Traceback (most recent call last):
+  File "C:\Users\Dima\Desktop\tg_sender\main.py", line 75, in <module>
+    app = App()
+  File "C:\Users\Dima\Desktop\tg_sender\ui\app.py", line 45, in __init__
+    self._build_ui()
+    ~~~~~~~~~~~~~~^^
+  File "C:\Users\Dima\Desktop\tg_sender\ui\app.py", line 131, in _build_ui
+    6: LolzFrame(self.content, self),
+       ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dima\Desktop\tg_sender\ui\lolz_frame.py", line 28, in __init__
+    self._build()
+    ~~~~~~~~~~~^^
+  File "C:\Users\Dima\Desktop\tg_sender\ui\lolz_frame.py", line 71, in _build
+    self._build_quick_search(self.main_tabs.tab("🔍  Быстрый поиск"))
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dima\Desktop\tg_sender\ui\lolz_frame.py", line 305, in _build_quick_search
+    w.pack(fill="x")
+    ~~~~~~^^^^^^^^^^
+  File "C:\Users\Dima\AppData\Local\Programs\Python\Python314\Lib\site-packages\customtkinter\windows\widgets\core_widget_classes\ctk_base_class.py", line 298, in pack
+    return super().pack(**self._apply_argument_scaling(kwargs))
+           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dima\AppData\Local\Programs\Python\Python314\Lib\tkinter\__init__.py", line 2621, in pack_configure
+    self.tk.call(
+    ~~~~~~~~~~~~^
+          ('pack', 'configure', self._w)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+          + self._options(cnf, kw))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+_tkinter.TclError: cannot use geometry manager pack inside .!ctkframe2.!lolzframe.!ctktabview.!ctkframe2.!ctkframe.!canvas.!ctkscrollableframe.!ctkframe.!ctkframe.!ctkframe which already has slaves managed by grid
+
+2026-06-02 01:09:58,111 [ERROR] tgsender: Bootstrap API: Укажите Bootstrap API ID и API Hash в вкладке «Аккаунты» → «Настройки API» (временные ключи для первого входа, затем подтянутся свои с my.telegram.org).
+Traceback (most recent call last):
+  File "C:\Users\Dima\Desktop\tg_sender\ui\accounts_frame.py", line 515, in _manual_send_code
+    api_id, api_hash = get_bootstrap_credentials()
+                       ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Dima\Desktop\tg_sender\core\account_pipeline.py", line 22, in get_bootstrap_credentials
+    raise ValidationError(
+    ...<2 lines>...
+    )
+core.errors.ValidationError: Укажите Bootstrap API ID и API Hash в вкладке «Аккаунты» → «Настройки API» (временные ключи для первого входа, затем подтянутся свои с my.telegram.org).
+
+2026-06-02 01:10:05,509 [ERROR] tgsender: Bootstrap API: Укажите Bootstrap API ID и API Hash в вкладке «Аккаунты» → «Настройки API» (временные ключи для первого входа, затем подтянутся свои с my.telegram.org).
+Traceback (most recent call last):
+  File "C:\Users\Dima\Desktop\tg_sender\ui\accounts_frame.py", line 515, in _manual_send_code
+    api_id, api_hash = get_bootstrap_credentials()
+                       ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Dima\Desktop\tg_sender\core\account_pipeline.py", line 22, in get_bootstrap_credentials
+    raise ValidationError(
+    ...<2 lines>...
+    )
+core.errors.ValidationError: Укажите Bootstrap API ID и API Hash в вкладке «Аккаунты» → «Настройки API» (временные ключи для первого входа, затем подтянутся свои с my.telegram.org).
+
+2026-06-02 01:10:19,983 [ERROR] tgsender: Bootstrap API: Укажите Bootstrap API ID и API Hash в вкладке «Аккаунты» → «Настройки API» (временные ключи для первого входа, затем подтянутся свои с my.telegram.org).
+Traceback (most recent call last):
+  File "C:\Users\Dima\Desktop\tg_sender\ui\accounts_frame.py", line 515, in _manual_send_code
+    api_id, api_hash = get_bootstrap_credentials()
+                       ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Dima\Desktop\tg_sender\core\account_pipeline.py", line 22, in get_bootstrap_credentials
+    raise ValidationError(
+    ...<2 lines>...
+    )
+core.errors.ValidationError: Укажите Bootstrap API ID и API Hash в вкладке «Аккаунты» → «Настройки API» (временные ключи для первого входа, затем подтянутся свои с my.telegram.org).
+
+2026-06-02 01:10:49,136 [ERROR] tgsender: lolz_frame: Укажите API-токен Lolz.market
+Traceback (most recent call last):
+  File "C:\Users\Dima\Desktop\tg_sender\ui\lolz_frame.py", line 567, in _thread
+    result = func()
+  File "C:\Users\Dima\Desktop\tg_sender\ui\lolz_frame.py", line 332, in _go
+    return self._client().search_category(cat, **params)
+           ~~~~~~~~~~~~^^
+  File "C:\Users\Dima\Desktop\tg_sender\ui\lolz_frame.py", line 558, in _client
+    return LolzMarketClient(token)
+  File "C:\Users\Dima\Desktop\tg_sender\core\lolzteam_api.py", line 32, in __init__
+    raise ValidationError("Укажите API-токен Lolz.market")
+core.errors.ValidationError: Укажите API-токен Lolz.market
+
+2026-06-02 01:18:27,328 [ERROR] tgsender: Bootstrap API: Укажите Bootstrap API ID и API Hash в вкладке «Аккаунты» → «Настройки API» (временные ключи для первого входа, затем подтянутся свои с my.telegram.org).
+Traceback (most recent call last):
+  File "C:\Users\Dima\Desktop\tg_sender\ui\accounts_frame.py", line 515, in _manual_send_code
+    api_id, api_hash = get_bootstrap_credentials()
+                       ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Dima\Desktop\tg_sender\core\account_pipeline.py", line 22, in get_bootstrap_credentials
+    raise ValidationError(
+    ...<2 lines>...
+    )
+core.errors.ValidationError: Укажите Bootstrap API ID и API Hash в вкладке «Аккаунты» → «Настройки API» (временные ключи для первого входа, затем подтянутся свои с my.telegram.org).
+

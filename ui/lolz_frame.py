@@ -293,16 +293,21 @@ class LolzFrame(ctk.CTkFrame):
         grid = ctk.CTkFrame(inner, fg_color="transparent")
         grid.pack(fill="x")
         grid.columnconfigure((0, 1, 2), weight=1)
-        self.q_pmin = ent(grid, "0")
-        self.q_pmax = ent(grid, "500")
-        self.q_page = ent(grid, "1")
-        for col, (lab, w) in enumerate([
-            ("Цена от", self.q_pmin), ("Цена до", self.q_pmax), ("Стр.", self.q_page),
+        self.q_pmin = self.q_pmax = self.q_page = None
+        for col, (lab, ph) in enumerate([
+            ("Цена от (₽)", "0"), ("Цена до (₽)", "500"), ("Страница", "1"),
         ]):
             c = ctk.CTkFrame(grid, fg_color="transparent")
             c.grid(row=0, column=col, sticky="ew", padx=3)
             lbl(c, lab, size=10, color="#8892a4").pack(anchor="w")
-            w.pack(fill="x")
+            e = ent(c, ph)
+            e.pack(fill="x")
+            if col == 0:
+                self.q_pmin = e
+            elif col == 1:
+                self.q_pmax = e
+            else:
+                self.q_page = e
         btn(inner, "🔍  Поиск", color="#7c3aed", hover="#6d28d9",
             command=self._quick_search).pack(fill="x", pady=(10, 0))
 
@@ -391,16 +396,20 @@ class LolzFrame(ctk.CTkFrame):
         row.columnconfigure((0, 1), weight=1)
         c1 = ctk.CTkFrame(row, fg_color="transparent")
         c1.grid(row=0, column=0, sticky="ew", padx=(0, 6))
-        lbl(c1, "API ID").pack(anchor="w")
-        self.tg_api_id = ent(c1, db.get_setting("lolz_default_api_id") or "")
+        lbl(c1, "Bootstrap API ID (пример: 12345678) — вкладка Аккаунты → Bootstrap").pack(anchor="w")
+        self.tg_api_id = ent(c1, db.get_setting("bootstrap_api_id") or db.get_setting("lolz_default_api_id") or "")
         self.tg_api_id.pack(fill="x")
         c2 = ctk.CTkFrame(row, fg_color="transparent")
         c2.grid(row=0, column=1, sticky="ew", padx=(6, 0))
-        lbl(c2, "API Hash").pack(anchor="w")
-        self.tg_api_hash = ent(c2, db.get_setting("lolz_default_api_hash") or "")
+        lbl(c2, "Bootstrap API Hash (32 символа hex)").pack(anchor="w")
+        self.tg_api_hash = ent(c2, db.get_setting("bootstrap_api_hash") or db.get_setting("lolz_default_api_hash") or "", show="•")
         self.tg_api_hash.pack(fill="x")
-        btn(inner, "📦  Загрузить покупки (Telegram)", color="#059669", hover="#047857",
-            command=self._load_tg_orders).pack(fill="x")
+        btn_row = ctk.CTkFrame(inner, fg_color="transparent")
+        btn_row.pack(fill="x", pady=(8, 0))
+        btn(btn_row, "📦  Загрузить покупки", color="#059669", hover="#047857",
+            command=self._load_tg_orders).pack(side="left", fill="x", expand=True, padx=(0, 4))
+        btn(btn_row, "⚡  Зарядить все новые", color="#7c3aed", hover="#6d28d9",
+            command=self._charge_all_orders).pack(side="left", fill="x", expand=True)
 
         self.tg_orders = ctk.CTkScrollableFrame(body, fg_color="#13151c", height=400)
         self.tg_orders.pack(fill="both", expand=True, pady=8)
@@ -436,40 +445,111 @@ class LolzFrame(ctk.CTkFrame):
         api_id = self.tg_api_id.get().strip()
         api_hash = self.tg_api_hash.get().strip()
         if not api_id or not api_hash:
-            messagebox.showerror("Ошибка", "Укажите API ID и API Hash")
+            messagebox.showerror("Ошибка", "Укажите Bootstrap API ID/Hash (вкладка Аккаунты → Bootstrap)")
             return
-        item_id = item_summary.get("item_id")
-        self.tg_status.configure(text=f"Импорт #{item_id}...", text_color="#f59e0b")
+        item_id = str(item_summary.get("item_id"))
+        if db.account_exists_by_lolz(item_id):
+            messagebox.showinfo("Уже в базе", f"Товар #{item_id} уже импортирован")
+            return
+        db.set_setting("bootstrap_api_id", api_id)
+        db.set_setting("bootstrap_api_hash", api_hash)
+        self._charge_lolz_item(item_id, item_summary)
 
-        def _fetch():
-            full = self._client().get_item(item_id)
+    def _charge_lolz_item(self, item_id, item_summary=None):
+        self.tg_status.configure(text=f"Зарядка #{item_id}...", text_color="#f59e0b")
+
+        def _work():
+            import asyncio
+            from core.account_pipeline import charge_with_session
+
+            if item_summary:
+                full = {"item": item_summary}
+            else:
+                full = self._client().get_item(item_id)
             item = full.get("item") or full
             session = LolzMarketClient.extract_telegram_session(item)
             if not session:
                 raise ValueError(
-                    "Session string не найден в ответе API. "
-                    "Откройте товар на lzt.market и импортируйте вручную (Session String)."
+                    "Session string не найден. Откройте товар на lzt.market — "
+                    "данные могут быть только после покупки."
                 )
-            return session, item
+            phone = item.get("telegram_phone") or item.get("login") or ""
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                return loop.run_until_complete(charge_with_session(
+                    session,
+                    phone=str(phone) if phone else None,
+                    bootstrap_api_id=self.tg_api_id.get().strip(),
+                    bootstrap_api_hash=self.tg_api_hash.get().strip(),
+                    lolz_item_id=str(item_id),
+                    notes="lolz.market",
+                ))
+            finally:
+                loop.close()
+
+        def _done(acc_id, err):
+            if err:
+                self.tg_status.configure(text=err, text_color="#f87171")
+                return
+            self.tg_status.configure(text=f"✅ Аккаунт #{acc_id} готов к рассылке", text_color="#4ade80")
+            messagebox.showinfo("Готово", f"Аккаунт #{acc_id} заряжен (сессия + проверка статуса)")
+            self._load_tg_orders()
+
+        self._run(_work, _done)
+
+    def _charge_all_orders(self):
+        if not messagebox.askyesno("Зарядка", "Импортировать все новые покупки Telegram из списка?"):
+            return
+
+        def _work():
+            data = self._client().get_orders(category_id=24)
+            items = (data or {}).get("items") or []
+            imported = []
+            for it in items[:30]:
+                iid = str(it.get("item_id"))
+                if db.account_exists_by_lolz(iid):
+                    continue
+                try:
+                    acc_id = self._charge_lolz_item_sync(iid, it)
+                    imported.append(acc_id)
+                except Exception:
+                    pass
+            return imported
 
         def _done(result, err):
             if err:
                 self.tg_status.configure(text=err, text_color="#f87171")
                 return
-            session, item = result
-            phone = item.get("telegram_phone") or item.get("login") or ""
-            acc_id = db.add_account(
-                api_id=api_id, api_hash=api_hash,
-                session_string=session,
-                phone=str(phone) if phone else None,
-                notes="lolz.market",
-            )
-            db.set_setting("lolz_default_api_id", api_id)
-            db.set_setting("lolz_default_api_hash", api_hash)
-            self.tg_status.configure(text=f"✅ Аккаунт #{acc_id} добавлен", text_color="#4ade80")
-            messagebox.showinfo("Готово", f"Аккаунт #{acc_id} добавлен в пул")
+            n = len(result or [])
+            self.tg_status.configure(text=f"✅ Заряжено аккаунтов: {n}", text_color="#4ade80")
+            messagebox.showinfo("Готово", f"Добавлено и проверено: {n} аккаунтов")
 
-        self._run(_fetch, _done)
+        self._run(_work, _done)
+
+    def _charge_lolz_item_sync(self, item_id, item_summary):
+        import asyncio
+        from core.account_pipeline import charge_with_session
+
+        full = self._client().get_item(item_id)
+        item = full.get("item") or full
+        session = LolzMarketClient.extract_telegram_session(item)
+        if not session:
+            raise ValueError(f"#{item_id}: нет session string")
+        phone = item.get("telegram_phone") or item.get("login") or ""
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(charge_with_session(
+                session,
+                phone=str(phone) if phone else None,
+                bootstrap_api_id=self.tg_api_id.get().strip(),
+                bootstrap_api_hash=self.tg_api_hash.get().strip(),
+                lolz_item_id=str(item_id),
+                notes="lolz.market",
+            ))
+        finally:
+            loop.close()
 
     # ── Shared ────────────────────────────────────────────────────────────────
 

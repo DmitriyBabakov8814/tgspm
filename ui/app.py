@@ -11,6 +11,7 @@ from ui.broadcast_frame import BroadcastFrame
 from ui.parser_frame import ParserFrame
 from ui.history_frame import HistoryFrame
 from ui.lolz_frame import LolzFrame
+from ui.clipboard import bind_clipboard
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
@@ -43,6 +44,7 @@ class App(ctk.CTk):
         self.report_callback_exception = self._tk_callback_error
 
         self._build_ui()
+        bind_clipboard(self)
         self._select_nav(0)
 
     def _tk_callback_error(self, exc, val, tb):
@@ -159,8 +161,9 @@ class App(ctk.CTk):
             accounts = db.get_accounts(active_only=True)
             total = db.get_accounts()
             banned = sum(1 for a in total if a.get("is_banned"))
+            muted = sum(1 for a in total if a.get("is_muted"))
             self.acc_count_lbl.configure(
-                text=f"🟢  {len(accounts)} акт  /  ☠ {banned} бан",
+                text=f"🟢 {len(accounts)} акт / 🟡 {muted} мут / ☠ {banned} бан",
                 text_color="#4ade80" if accounts else "#4a5568"
             )
         except Exception as exc:

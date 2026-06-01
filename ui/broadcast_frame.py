@@ -8,6 +8,7 @@ from core.errors import humanize_error, log_exception
 from data import database as db
 from core.account_pool import AccountPool, MultiAccountSender
 from ui.widgets import card, lbl, ent, btn, sep
+from ui.clipboard import bind_readonly_log
 
 
 class BroadcastFrame(ctk.CTkFrame):
@@ -36,7 +37,7 @@ class BroadcastFrame(ctk.CTkFrame):
         left.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
 
         # Campaign name
-        lbl(left, "Название кампании").pack(anchor="w", pady=(0, 2))
+        lbl(left, "Название кампании (пример: Рассылка июнь)").pack(anchor="w", pady=(0, 2))
         self.e_name = ent(left, "Моя кампания")
         self.e_name.pack(fill="x", pady=(0, 12))
 
@@ -50,6 +51,7 @@ class BroadcastFrame(ctk.CTkFrame):
             ("contacts", "👥  По контактам", "Личные сообщения контактам из базы"),
             ("chats", "💬  По чатам", "Отправка в группы и каналы"),
             ("dm_parsed", "🔍  ЛС спарсенным", "Личные сообщения комментаторам"),
+            ("single_blast", "🎯  Всеми аккаунтами → 1 юзер", "Каждый активный акк пишет одному"),
         ]
         for val, label, hint in modes:
             row = ctk.CTkFrame(mode_card, fg_color="transparent")
@@ -60,6 +62,13 @@ class BroadcastFrame(ctk.CTkFrame):
             ).pack(side="left")
             lbl(row, hint, size=10, color="#4a5568").pack(side="left", padx=8)
         ctk.CTkFrame(mode_card, fg_color="transparent", height=8).pack()
+
+        blast_row = ctk.CTkFrame(mode_card, fg_color="transparent")
+        blast_row.pack(fill="x", padx=14, pady=(0, 8))
+        lbl(blast_row, "Получатель для режима «1 юзер» (пример: @username)", size=11, color="#8892a4"
+            ).pack(anchor="w")
+        self.e_single_user = ent(blast_row, "@durov")
+        self.e_single_user.pack(fill="x", pady=(2, 0))
 
         # Message text
         lbl(left, "Текст сообщения").pack(anchor="w", pady=(0, 2))
@@ -214,9 +223,9 @@ class BroadcastFrame(ctk.CTkFrame):
             ).pack(anchor="w", padx=14, pady=(0, 4))
         self.log_box = ctk.CTkTextbox(right, corner_radius=8,
             fg_color="#0d0f14", border_color="#1e2130",
-            text_color="#6b7280", font=ctk.CTkFont("Courier", 11),
-            state="disabled")
+            text_color="#6b7280", font=ctk.CTkFont("Courier", 11))
         self.log_box.pack(fill="both", expand=True, padx=14, pady=(0, 14))
+        bind_readonly_log(self.log_box)
 
         self.tag_colors = {"ok": "#4ade80", "err": "#f87171", "warn": "#f59e0b", "info": "#60a5fa"}
 
@@ -264,10 +273,7 @@ class BroadcastFrame(ctk.CTkFrame):
         self.media_lbl.configure(text="📎  Без медиа", text_color="#4a5568")
 
     def _log(self, text, kind="info"):
-        color = self.tag_colors.get(kind, "#6b7280")
-        self.log_box.configure(state="normal")
         self.log_box.insert("end", text + "\n")
-        self.log_box.configure(state="disabled")
         self.log_box.see("end")
 
     def _set_stats(self, total=None, sent=None, failed=None):
@@ -327,6 +333,12 @@ class BroadcastFrame(ctk.CTkFrame):
             elif mode == "chats":
                 chats = db.get_chats(active_only=True)
                 t_list = [{"identifier": c.get("username") or c.get("chat_id"), **c} for c in chats]
+            elif mode == "single_blast":
+                target = self.e_single_user.get().strip().lstrip("@")
+                if not target:
+                    messagebox.showerror("Ошибка", "Укажите username получателя (пример: @durov)")
+                    return
+                t_list = [{"identifier": target, "username": target} for _ in accounts]
             else:
                 parsed = db.get_parsed_users()
                 t_list = [{"identifier": u.get("username"), **u} for u in parsed if u.get("username")]
@@ -361,9 +373,7 @@ class BroadcastFrame(ctk.CTkFrame):
             return
 
         # Reset UI
-        self.log_box.configure(state="normal")
         self.log_box.delete("1.0", "end")
-        self.log_box.configure(state="disabled")
         self.prog_bar.set(0)
         self._set_stats(total=len(t_list), sent=0, failed=0)
         self.btn_start.configure(state="disabled")

@@ -2,6 +2,7 @@ import customtkinter as ctk
 
 from data import database as db
 from ui.widgets import lbl as _label, btn as _btn
+from ui.clipboard import bind_readonly_log
 
 
 STATUS_COLORS = {
@@ -16,6 +17,7 @@ TYPE_LABELS = {
     "chats": "💬 Чаты",
     "dm": "📩 ЛС",
     "dm_parsed": "🔍 ЛС парсер",
+    "single_blast": "🎯 Все → 1 юзер",
     "invite": "📨 Инвайт",
 }
 
@@ -84,9 +86,9 @@ class HistoryFrame(ctk.CTkFrame):
             right, corner_radius=8,
             fg_color="#0d0f14", border_color="#1e2130",
             text_color="#6b7280", font=ctk.CTkFont("Courier", 11),
-            state="disabled"
         )
         self.log_box.pack(fill="both", expand=True, padx=20, pady=(0, 20))
+        bind_readonly_log(self.log_box)
 
         self._load_campaigns()
 
@@ -140,7 +142,6 @@ class HistoryFrame(ctk.CTkFrame):
             )
 
             logs = db.get_campaign_logs(campaign["id"])
-            self.log_box.configure(state="normal")
             self.log_box.delete("1.0", "end")
             for log in logs:
                 ts = (log.get("sent_at") or "")[:19]
@@ -152,7 +153,6 @@ class HistoryFrame(ctk.CTkFrame):
                 if err:
                     line += f"  →  {err}"
                 self.log_box.insert("end", line + "\n")
-            self.log_box.configure(state="disabled")
             self.log_box.see("end")
         except Exception as exc:
             self.app.report_error("Ошибка загрузки лога", exc)

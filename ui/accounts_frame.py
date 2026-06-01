@@ -11,6 +11,7 @@ from pathlib import Path
 from data import database as db
 from core.tg_client import TGClient
 from core.my_telegram_api import MyTelegramOrgClient
+from core.bootstrap import resolve_bootstrap_credentials, save_bootstrap
 from core.errors import humanize_error
 from ui.widgets import card, lbl, ent, btn
 
@@ -27,8 +28,10 @@ SESSION_DIR.mkdir(exist_ok=True)
 STATUS_COLORS = {
     "active": "#4ade80",
     "banned": "#f87171",
+    "muted": "#f59e0b",
     "cooldown": "#f59e0b",
     "unauthorized": "#fb923c",
+    "pending": "#94a3b8",
     "unknown": "#4a5568",
 }
 
@@ -61,17 +64,46 @@ class AccountsFrame(ctk.CTkFrame):
             text_color="#c9d1e0",
         )
         self.tabview.pack(fill="both", expand=True, padx=32, pady=(12, 20))
-        self.tabview.add("📋  Все аккаунты")
-        self.tabview.add("📥  Импорт .session")
-        self.tabview.add("🔑  Session String")
-        self.tabview.add("📲  Ручной вход")
+        self.tabview.add("📋  Список")
+        self.tabview.add("➕  Добавить")
         self.tabview.add("🌐  Прокси")
 
-        self._build_list_tab(self.tabview.tab("📋  Все аккаунты"))
-        self._build_session_import_tab(self.tabview.tab("📥  Импорт .session"))
-        self._build_string_tab(self.tabview.tab("🔑  Session String"))
-        self._build_manual_tab(self.tabview.tab("📲  Ручной вход"))
+        self._build_list_tab(self.tabview.tab("📋  Список"))
+        self._build_add_tab(self.tabview.tab("➕  Добавить"))
         self._build_proxy_tab(self.tabview.tab("🌐  Прокси"))
+
+    def _build_add_tab(self, tab):
+        hint = lbl(
+            tab,
+            "Добавление аккаунта: по телефону (код из Telegram) или через готовый session / файл .session",
+            size=12,
+            color="#8892a4",
+        )
+        hint.pack(anchor="w", padx=8, pady=(8, 4))
+
+        inner = ctk.CTkTabview(
+            tab,
+            fg_color="#13151c",
+            segmented_button_fg_color="#1a1d27",
+            segmented_button_selected_color="#2563eb",
+            segmented_button_selected_hover_color="#1d4ed8",
+            segmented_button_unselected_color="#1a1d27",
+            segmented_button_unselected_hover_color="#2a2f45",
+            text_color="#c9d1e0",
+        )
+        inner.pack(fill="both", expand=True, padx=4, pady=(0, 8))
+        inner.add("По телефону")
+        inner.add("Session / файл")
+
+        self._build_manual_tab(inner.tab("По телефону"))
+        self._build_import_combined_tab(inner.tab("Session / файл"))
+
+    def _build_import_combined_tab(self, tab):
+        scroll = ctk.CTkScrollableFrame(tab, fg_color="transparent")
+        scroll.pack(fill="both", expand=True)
+        self._build_string_tab(scroll)
+        ctk.CTkFrame(scroll, height=1, fg_color="#1e2130").pack(fill="x", pady=16)
+        self._build_session_import_tab(scroll)
 
     # ── Tab: All accounts ─────────────────────────────────────────────────────
 
@@ -92,8 +124,10 @@ class AccountsFrame(ctk.CTkFrame):
         # Table header
         hdr = ctk.CTkFrame(tab, fg_color="#1a1d27", corner_radius=8)
         hdr.pack(fill="x")
-        for text, w in [("ID", 40), ("Телефон", 130), ("Страна", 70), ("Статус", 90),
-                        ("День/Всего", 90), ("Последний сеанс", 130), ("Прокси", 120), ("", 100)]:
+        for text, w in [
+            ("ID", 36), ("Телефон", 110), ("API ID", 72), ("API Hash", 88),
+            ("Статус", 72), ("Д/В", 56), ("Прокси", 80), ("", 72),
+        ]:
             ctk.CTkLabel(hdr, text=text, width=w, anchor="w",
                 font=ctk.CTkFont("Helvetica", 11, "bold"), text_color="#4a5568"
             ).pack(side="left", padx=6, pady=6)
@@ -108,38 +142,43 @@ class AccountsFrame(ctk.CTkFrame):
             for w in self.acc_scroll.winfo_children():
                 w.destroy()
             accounts = db.get_accounts()
-            active = sum(1 for a in accounts if not a.get("is_banned"))
+            active = sum(1 for a in accounts if db.account_is_mailable(a))
+            muted = sum(1 for a in accounts if a.get("is_muted") or a.get("status") == "muted")
             banned = sum(1 for a in accounts if a.get("is_banned"))
+            pending = sum(1 for a in accounts if a.get("status") in ("pending", "unauthorized"))
             total_sent = sum(a.get("total_sent", 0) for a in accounts)
             self.stats_lbl.configure(
-                text=f"Всего: {len(accounts)}  |  Активных: {active}  |  Забаненных: {banned}  |  Отправлено всего: {total_sent}"
+                text=(
+                    f"Всего: {len(accounts)} | Готовы: {active} | "
+                    f"Не готовы: {pending} | Мут: {muted} | Бан: {banned} | Отпр: {total_sent}"
+                )
             )
 
             for acc in accounts:
-                status = "banned" if acc.get("is_banned") else acc.get("status", "unknown")
+                if acc.get("is_banned"):
+                    status = "banned"
+                elif acc.get("is_muted"):
+                    status = "muted"
+                else:
+                    status = acc.get("status") or "unknown"
                 sc = STATUS_COLORS.get(status, "#4a5568")
+                row_bg = "#1a0a0a" if status == "banned" else ("#1a1508" if status == "muted" else "#13151c")
 
-                row = ctk.CTkFrame(self.acc_scroll,
-                    fg_color="#13151c" if not acc.get("is_banned") else "#1a0a0a",
-                    corner_radius=8)
+                row = ctk.CTkFrame(self.acc_scroll, fg_color=row_bg, corner_radius=8)
                 row.pack(fill="x", pady=2)
 
-                lbl(row, str(acc["id"]), size=11, color="#4a5568", width=40).pack(side="left", padx=6, pady=8)
+                lbl(row, str(acc["id"]), size=10, color="#4a5568", width=36).pack(side="left", padx=4, pady=6)
                 phone = acc.get("phone") or "—"
-                lbl(row, phone[:16], size=12, color="#e2e8f0" if not acc.get("is_banned") else "#6b7280",
-                    width=130).pack(side="left", padx=4)
-                lbl(row, (acc.get("country") or "—")[:8], size=11, color="#4a5568", width=70
-                    ).pack(side="left", padx=4)
-                lbl(row, status.upper(), size=11, bold=True, color=sc, width=90
-                    ).pack(side="left", padx=4)
+                lbl(row, phone[:14], size=11, color="#e2e8f0", width=110).pack(side="left", padx=2)
+                lbl(row, str(acc.get("api_id") or "—")[:10], size=10, color="#94a3b8", width=72).pack(side="left", padx=2)
+                ah = (acc.get("api_hash") or "—")
+                lbl(row, f"{ah[:6]}…{ah[-4:]}" if len(ah) > 12 else ah, size=10, color="#94a3b8", width=88).pack(side="left", padx=2)
+                lbl(row, status.upper()[:8], size=10, bold=True, color=sc, width=72).pack(side="left", padx=2)
                 day = acc.get("daily_sent", 0)
                 total = acc.get("total_sent", 0)
-                lbl(row, f"{day}/{total}", size=11, color="#4a5568", width=90
-                    ).pack(side="left", padx=4)
-                lu = (acc.get("last_used") or "—")[:16]
-                lbl(row, lu, size=11, color="#4a5568", width=130).pack(side="left", padx=4)
-                proxy = (acc.get("proxy") or "нет")[:18]
-                lbl(row, proxy, size=10, color="#4a5568", width=120).pack(side="left", padx=4)
+                lbl(row, f"{day}/{total}", size=10, color="#4a5568", width=56).pack(side="left", padx=2)
+                proxy = (acc.get("proxy") or "—")[:12]
+                lbl(row, proxy, size=9, color="#4a5568", width=80).pack(side="left", padx=2)
                 acts = ctk.CTkFrame(row, fg_color="transparent", width=100)
                 acts.pack(side="right", padx=6)
                 btn(acts, "✓", color="#1e2130", hover="#2a2f45", h=28, width=32,
@@ -403,70 +442,67 @@ class AccountsFrame(ctk.CTkFrame):
     # ── Tab: Manual login ─────────────────────────────────────────────────────
 
     def _build_manual_tab(self, tab):
-        body = ctk.CTkFrame(tab, fg_color="transparent")
-        body.pack(fill="x", padx=4, pady=4)
-        body.columnconfigure(0, weight=1)
-        body.columnconfigure(1, weight=1)
+        wrap = card(tab)
+        wrap.pack(fill="both", expand=True, padx=4, pady=4)
 
-        left = card(body)
-        left.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
+        lbl(wrap, "Вход по номеру телефона", size=15, bold=True, color="#4fc3f7"
+            ).pack(anchor="w", padx=20, pady=(16, 4))
+        lbl(
+            wrap,
+            "API ID и API Hash подтягиваются автоматически. Вам нужны только номер и код из Telegram.",
+            size=11,
+            color="#8892a4",
+            justify="left",
+        ).pack(anchor="w", padx=20, pady=(0, 10))
+        ctk.CTkFrame(wrap, height=1, fg_color="#1e2130").pack(fill="x", padx=20, pady=4)
 
-        lbl(left, "Авторизация по номеру", size=14, bold=True, color="#4fc3f7"
-            ).pack(anchor="w", padx=16, pady=(14, 4))
-        lbl(left,
-            "API ID и Hash будут получены автоматически\nс my.telegram.org после ввода кода",
-            size=11, color="#8892a4", justify="left"
-        ).pack(anchor="w", padx=16, pady=(0, 4))
-        ctk.CTkFrame(left, height=1, fg_color="#1e2130").pack(fill="x", padx=16, pady=8)
+        f = ctk.CTkFrame(wrap, fg_color="transparent")
+        f.pack(fill="x", padx=20, pady=8)
 
-        f = ctk.CTkFrame(left, fg_color="transparent")
-        f.pack(fill="x", padx=16)
+        lbl(f, "Шаг 1 — Телефон", size=12, bold=True, color="#c9d1e0").pack(anchor="w")
+        lbl(f, "Международный формат, пример: +79161234567", size=11, color="#64748b").pack(anchor="w")
+        self.m_phone = ent(f, "+79161234567")
+        self.m_phone.pack(fill="x", pady=(4, 10))
 
-        lbl(f, "Телефон").pack(anchor="w", pady=(0, 2))
-        self.m_phone = ent(f, "+79001234567")
-        self.m_phone.pack(fill="x", pady=(0, 8))
+        lbl(f, "Прокси — опционально", size=11, color="#64748b").pack(anchor="w")
+        self.m_proxy = ent(f, "socks5://host:port")
+        self.m_proxy.pack(fill="x", pady=(4, 12))
 
-        lbl(f, "Прокси (опционально)").pack(anchor="w", pady=(0, 2))
-        self.m_proxy = ent(f, "socks5://host:port (опционально)")
-        self.m_proxy.pack(fill="x", pady=(0, 8))
+        self.btn_send_code = btn(
+            f, "1.  Отправить код в Telegram", command=self._manual_send_code,
+        )
+        self.btn_send_code.pack(fill="x", pady=(0, 16))
+
+        ctk.CTkFrame(f, height=1, fg_color="#1e2130").pack(fill="x", pady=4)
+
+        lbl(f, "Шаг 2 — Код из Telegram", size=12, bold=True, color="#c9d1e0").pack(anchor="w", pady=(8, 0))
+        lbl(f, "Код придёт в приложение Telegram (не SMS)", size=11, color="#64748b").pack(anchor="w")
+        self.m_code = ent(f, "12345")
+        self.m_code.pack(fill="x", pady=(4, 10))
+
+        lbl(f, "Пароль 2FA — если включён", size=11, color="#64748b").pack(anchor="w")
+        self.m_2fa = ent(f, "", show="•")
+        self.m_2fa.pack(fill="x", pady=(4, 12))
 
         api_box = ctk.CTkFrame(f, fg_color="#1a1d27", corner_radius=8)
-        api_box.pack(fill="x", pady=(0, 12))
-        lbl(api_box, "API credentials (авто)", size=11, bold=True, color="#4a5568"
+        api_box.pack(fill="x", pady=(0, 10))
+        lbl(api_box, "API (подтянутся автоматически)", size=11, bold=True, color="#4a5568"
             ).pack(anchor="w", padx=10, pady=(8, 2))
         self.m_api_id_lbl = lbl(api_box, "API ID:  —", size=12, color="#64748b")
         self.m_api_id_lbl.pack(anchor="w", padx=10)
         self.m_api_hash_lbl = lbl(api_box, "API Hash:  —", size=12, color="#64748b")
         self.m_api_hash_lbl.pack(anchor="w", padx=10, pady=(0, 8))
 
-        btn(f, "📲  Отправить код", command=self._manual_send_code).pack(fill="x", pady=(4, 14))
-
-        # Right: code entry
-        right = card(body)
-        right.grid(row=0, column=1, sticky="nsew", padx=(8, 0))
-
-        lbl(right, "Ввод кода", size=14, bold=True, color="#4fc3f7"
-            ).pack(anchor="w", padx=16, pady=(14, 4))
-        ctk.CTkFrame(right, height=1, fg_color="#1e2130").pack(fill="x", padx=16, pady=8)
-
-        g = ctk.CTkFrame(right, fg_color="transparent")
-        g.pack(fill="x", padx=16)
-
-        lbl(g, "Код из Telegram").pack(anchor="w", pady=(0, 2))
-        self.m_code = ent(g, "12345")
-        self.m_code.pack(fill="x", pady=(0, 8))
-
-        lbl(g, "Пароль 2FA (если есть)").pack(anchor="w", pady=(0, 2))
-        self.m_2fa = ent(g, "••••••", show="•")
-        self.m_2fa.pack(fill="x", pady=(0, 12))
-
-        self.m_status = lbl(g, "Введите телефон и нажмите «Отправить код»", size=11, color="#4a5568")
+        self.m_status = lbl(f, "Сначала нажмите «Отправить код в Telegram»", size=11, color="#4a5568")
         self.m_status.pack(anchor="w", pady=(0, 8))
 
-        btn(g, "✅  Войти", color="#059669", hover="#047857",
-            command=self._manual_sign_in).pack(fill="x", pady=(0, 14))
+        self.btn_sign_in = btn(
+            f, "2.  Войти в аккаунт", color="#059669", hover="#047857",
+            command=self._manual_sign_in, state="disabled",
+        )
+        self.btn_sign_in.pack(fill="x", pady=(0, 16))
 
-        self._manual_step = 0       # 0=idle, 1=my.telegram code, 2=telethon code
+        self._manual_step = "idle"
         self._mytg_client = None
         self._mytg_hash = None
         self._manual_phone = None
@@ -474,6 +510,23 @@ class AccountsFrame(ctk.CTkFrame):
         self._manual_client = None
         self._manual_hash = None
         self._manual_acc_id = None
+
+    def _set_manual_ui_busy(self, busy: bool):
+        state = "disabled" if busy else "normal"
+        self.btn_send_code.configure(state=state)
+        if self._manual_step in ("telegram_code", "bootstrap_code"):
+            self.btn_sign_in.configure(state="normal" if not busy else "disabled")
+        elif busy:
+            self.btn_sign_in.configure(state="disabled")
+
+    def _update_api_labels(self, api_id, api_hash):
+        self.m_api_id_lbl.configure(text=f"API ID: {api_id}", text_color="#4ade80")
+        ah = api_hash or ""
+        tail = f"{ah[-4:]}" if len(ah) > 8 else ah
+        self.m_api_hash_lbl.configure(
+            text=f"API Hash: {ah[:8]}…{tail}" if len(ah) > 12 else f"API Hash: {ah}",
+            text_color="#4ade80",
+        )
 
     def _manual_send_code(self):
         phone = _normalize_phone(self.m_phone.get())
@@ -484,135 +537,190 @@ class AccountsFrame(ctk.CTkFrame):
         proxy = self.m_proxy.get().strip() or None
         self._manual_phone = phone
         self._manual_proxy = proxy
-        self._mytg_client = MyTelegramOrgClient(proxy=proxy)
         self._manual_client = None
         self._manual_hash = None
         self._manual_acc_id = None
-        self.m_api_id_lbl.configure(text="API ID:  получаем...", text_color="#f59e0b")
-        self.m_api_hash_lbl.configure(text="API Hash:  —", text_color="#64748b")
-        self.m_status.configure(text="Запрос к my.telegram.org...", text_color="#f59e0b")
+        self._mytg_client = None
+        self._mytg_hash = None
+        self.m_code.delete(0, "end")
+        self._set_manual_ui_busy(True)
+
+        api_id, api_hash = resolve_bootstrap_credentials()
+        if api_id and api_hash:
+            self._update_api_labels(api_id, api_hash)
+            self._start_telethon_send_code(phone, proxy, api_id, api_hash)
+            return
+
+        self._manual_step = "bootstrap_code"
+        self.m_status.configure(
+            text="Первый аккаунт: отправляем код для автоматического получения API…",
+            text_color="#f59e0b",
+        )
+        self._mytg_client = MyTelegramOrgClient(proxy=proxy)
 
         def _thread():
             try:
-                random_hash = self._mytg_client.send_password(phone)
-                self.app.after(0, lambda: self._on_mytg_code_sent(random_hash, None))
+                h = self._mytg_client.send_password(phone)
+                self.app.after(0, lambda: self._on_bootstrap_code_sent(h, None))
             except Exception as exc:
-                self.app.after(0, lambda err=humanize_error(exc): self._on_mytg_code_sent(None, err))
+                self.app.after(0, lambda err=humanize_error(exc): self._on_bootstrap_code_sent(None, err))
 
         threading.Thread(target=_thread, daemon=True).start()
 
-    def _on_mytg_code_sent(self, random_hash, err):
+    def _on_bootstrap_code_sent(self, random_hash, err):
+        self._set_manual_ui_busy(False)
         if err:
-            self.m_api_id_lbl.configure(text="API ID:  —", text_color="#64748b")
+            self._manual_step = "idle"
             self.m_status.configure(text=f"Ошибка: {err}", text_color="#f87171")
             return
         self._mytg_hash = random_hash
-        self._manual_step = 1
+        self.btn_sign_in.configure(state="normal")
         self.m_status.configure(
-            text="✅ Код отправлен! Введите его и нажмите «Войти»",
+            text="✅ Код отправлен! Введите его ниже и нажмите «Войти в аккаунт»",
             text_color="#4ade80",
         )
 
-    def _manual_sign_in(self):
-        code = self.m_code.get().strip()
-        if not code:
-            messagebox.showerror("Ошибка", "Введите код из Telegram")
-            return
+    def _start_telethon_send_code(self, phone, proxy, api_id, api_hash):
+        self._manual_step = "sending"
+        self.m_status.configure(text="Отправляем код в Telegram…", text_color="#f59e0b")
+        self._set_manual_ui_busy(True)
 
-        if self._manual_step == 1:
-            if not self._mytg_client or not self._mytg_hash:
-                messagebox.showerror("Ошибка", "Сначала отправьте код")
-                return
-            self.m_status.configure(text="Получаем API ID/Hash...", text_color="#f59e0b")
-
-            def _thread():
-                try:
-                    api_id, api_hash = self._mytg_client.login_and_get_credentials(
-                        self._manual_phone, self._mytg_hash, code
-                    )
-                    self.app.after(0, lambda: self._on_api_fetched(api_id, api_hash, None))
-                except Exception as exc:
-                    self.app.after(0, lambda err=humanize_error(exc): self._on_api_fetched(None, None, err))
-
-            threading.Thread(target=_thread, daemon=True).start()
-            return
-
-        if self._manual_step == 2:
-            if not self._manual_client:
-                messagebox.showerror("Ошибка", "Сессия не инициализирована")
-                return
-            pw = self.m_2fa.get().strip() or None
-
-            def _cb(result, err):
-                if err == "2FA_REQUIRED":
-                    if not pw:
-                        self.m_status.configure(text="Нужен пароль 2FA!", text_color="#f87171")
-                        return
-                elif err:
-                    self.m_status.configure(text=f"Ошибка: {err}", text_color="#f87171")
-                    return
-
-                async def _save():
-                    ss = await self._manual_client.get_session_string()
-                    db.update_account(self._manual_acc_id, session_string=ss, status="active")
-
-                self.app.run_async(_save(), None)
-                self.m_status.configure(text="🎉 Аккаунт добавлен!", text_color="#4ade80")
-                self._manual_step = 0
-                self._verify_after_import(self._manual_acc_id)
-                self._load_accounts()
-
-            async def _go():
-                await self._manual_client.sign_in(code, self._manual_hash, pw)
-
-            self.app.run_async(_go(), _cb)
-            return
-
-        messagebox.showerror("Ошибка", "Сначала отправьте код")
-
-    def _on_api_fetched(self, api_id, api_hash, err):
-        if err:
-            self.m_api_id_lbl.configure(text="API ID:  —", text_color="#64748b")
-            self.m_status.configure(text=f"Ошибка: {err}", text_color="#f87171")
-            return
-
-        self.m_api_id_lbl.configure(text=f"API ID:  {api_id}", text_color="#4ade80")
-        self.m_api_hash_lbl.configure(
-            text=f"API Hash:  {api_hash[:8]}…{api_hash[-4:]}",
-            text_color="#4ade80",
-        )
-
-        acc_id = db.add_account(
-            api_id=api_id,
-            api_hash=api_hash,
-            phone=_normalize_phone(self._manual_phone or ""),
-            proxy=self._manual_proxy,
-        )
-        records = db.get_accounts()
-        rec = next((r for r in records if r["id"] == acc_id), None)
+        rec = {"id": 0, "phone": phone, "api_id": api_id, "api_hash": api_hash, "proxy": proxy or ""}
         self._manual_client = TGClient(rec)
-        self._manual_acc_id = acc_id
-        self.m_status.configure(text="Отправляем код для входа в аккаунт...", text_color="#f59e0b")
-
-        def _cb(result, send_err):
-            if send_err:
-                db.delete_account(acc_id)
-                self._manual_client = None
-                self.m_status.configure(text=f"Ошибка Telethon: {send_err}", text_color="#f87171")
-                return
-            self._manual_hash = result
-            self._manual_step = 2
-            self.m_code.delete(0, "end")
-            self.m_status.configure(
-                text="✅ API получен! Введите НОВЫЙ код из Telegram и нажмите «Войти»",
-                text_color="#4ade80",
-            )
 
         async def _go():
             await self._manual_client.connect()
             return await self._manual_client.send_code()
 
+        def _cb(result, err):
+            self._set_manual_ui_busy(False)
+            if err:
+                self._manual_client = None
+                self._manual_step = "idle"
+                self.m_status.configure(text=f"Ошибка: {err}", text_color="#f87171")
+                return
+            self._manual_hash = result
+            self._manual_step = "telegram_code"
+            self.btn_sign_in.configure(state="normal")
+            self.m_status.configure(
+                text="✅ Код в Telegram отправлен! Введите код и нажмите «Войти в аккаунт»",
+                text_color="#4ade80",
+            )
+
         self.app.run_async(_go(), _cb)
+
+    def _manual_sign_in(self):
+        if self._manual_step == "idle":
+            messagebox.showinfo(
+                "Сначала отправьте код",
+                "Нажмите «1. Отправить код в Telegram», дождитесь кода в приложении Telegram, "
+                "введите его в поле «Шаг 2» и затем нажмите «2. Войти в аккаунт».",
+            )
+            return
+
+        code = self.m_code.get().strip()
+        if not code:
+            if self._manual_step == "bootstrap_code":
+                messagebox.showerror("Ошибка", "Введите код из Telegram (шаг 2)")
+            else:
+                messagebox.showerror("Ошибка", "Введите код из Telegram")
+            return
+
+        if self._manual_step == "bootstrap_code":
+            self._complete_bootstrap_with_code(code)
+            return
+
+        if self._manual_step != "telegram_code" or not self._manual_client:
+            messagebox.showerror(
+                "Ошибка",
+                "Сначала нажмите «1. Отправить код в Telegram» и дождитесь сообщения в Telegram.",
+            )
+            return
+
+        pw = self.m_2fa.get().strip() or None
+        self._set_manual_ui_busy(True)
+        self.m_status.configure(text="Входим в аккаунт…", text_color="#f59e0b")
+
+        def _cb(result, err):
+            if err == "2FA_REQUIRED":
+                self._set_manual_ui_busy(False)
+                if not pw:
+                    self.m_status.configure(text="Нужен пароль 2FA в поле выше!", text_color="#f87171")
+                    return
+            elif err:
+                self._set_manual_ui_busy(False)
+                self.m_status.configure(text=f"Ошибка: {err}", text_color="#f87171")
+                return
+
+            async def _save():
+                ss = await self._manual_client.get_session_string()
+                me = await self._manual_client.get_me()
+                phone = (me or {}).get("phone") or self._manual_phone
+                api_id = self._manual_client.acc["api_id"]
+                api_hash = self._manual_client.acc["api_hash"]
+                acc_id = db.add_account(
+                    api_id=api_id, api_hash=api_hash, phone=phone,
+                    session_string=ss, proxy=self._manual_proxy,
+                    status="active",
+                )
+                self.app.after(0, lambda: self._on_telethon_done(acc_id, phone, api_id, api_hash))
+
+            self.app.run_async(_save(), None)
+
+        async def _go():
+            await self._manual_client.sign_in(code, self._manual_hash, pw)
+
+        self.app.run_async(_go(), _cb)
+
+    def _complete_bootstrap_with_code(self, code: str):
+        if not self._mytg_client or not self._mytg_hash:
+            messagebox.showerror("Ошибка", "Сначала отправьте код")
+            return
+        self._set_manual_ui_busy(True)
+        self.m_status.configure(text="Получаем API ID/Hash с my.telegram.org…", text_color="#f59e0b")
+
+        phone = self._manual_phone
+        proxy = self._manual_proxy
+        client = self._mytg_client
+        random_hash = self._mytg_hash
+
+        def _thread():
+            try:
+                api_id, api_hash = client.login_and_get_credentials(phone, random_hash, code)
+                save_bootstrap(api_id, api_hash)
+                self.app.after(0, lambda: self._after_bootstrap_api(api_id, api_hash, None))
+            except Exception as exc:
+                self.app.after(0, lambda err=humanize_error(exc): self._after_bootstrap_api(None, None, err))
+
+        threading.Thread(target=_thread, daemon=True).start()
+
+    def _after_bootstrap_api(self, api_id, api_hash, err):
+        if err:
+            self._set_manual_ui_busy(False)
+            self._manual_step = "bootstrap_code"
+            self.m_status.configure(text=f"Ошибка API: {err}", text_color="#f87171")
+            return
+        self._update_api_labels(api_id, api_hash)
+        self.m_code.delete(0, "end")
+        self.m_status.configure(
+            text="API получены. Отправляем код для входа в Telegram…",
+            text_color="#f59e0b",
+        )
+        self._start_telethon_send_code(self._manual_phone, self._manual_proxy, api_id, api_hash)
+
+    def _on_telethon_done(self, acc_id, phone, api_id, api_hash):
+        self._manual_acc_id = acc_id
+        self._manual_step = "done"
+        self._set_manual_ui_busy(False)
+        self._update_api_labels(api_id, api_hash)
+        self.m_status.configure(
+            text="🎉 Аккаунт добавлен и готов к рассылке!",
+            text_color="#4ade80",
+        )
+        self.btn_sign_in.configure(state="disabled")
+        self.btn_send_code.configure(state="normal")
+        self._verify_after_import(acc_id)
+        self._load_accounts()
 
     # ── Tab: Proxy ────────────────────────────────────────────────────────────
 

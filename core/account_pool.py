@@ -96,9 +96,12 @@ class MultiAccountSender:
         except Exception as exc:
             log_exception(exc, "run_campaign.reset_daily_counts")
 
-        active_accounts = [a for a in accounts if not a.get("is_banned")]
+        active_accounts = [a for a in accounts if db.account_is_mailable(a)]
         if not active_accounts:
-            raise CampaignError("Нет активных аккаунтов")
+            raise CampaignError(
+                "Нет готовых аккаунтов для рассылки. "
+                "Завершите вход по телефону или проверьте аккаунты во вкладке «Аккаунты»."
+            )
 
         try:
             db.update_campaign_status(campaign_id, "running", total=len(targets))
@@ -135,7 +138,11 @@ class MultiAccountSender:
                 candidate = active_accounts[acc_idx % len(active_accounts)]
                 acc_id = candidate["id"]
 
-                if candidate.get("is_banned"):
+                if candidate.get("is_banned") or candidate.get("is_muted"):
+                    acc_idx += 1
+                    attempts += 1
+                    continue
+                if candidate.get("status") not in ("active", "cooldown", None):
                     acc_idx += 1
                     attempts += 1
                     continue
@@ -215,8 +222,12 @@ class MultiAccountSender:
 
             elif err_type == "peer_flood":
                 if log_cb:
-                    log_cb(f"🚫 PeerFlood на {acc.get('phone','?')} — cooldown 5min", "warn")
+                    log_cb(f"🚫 PeerFlood/мут на {acc.get('phone','?')} — смена аккаунта", "warn")
+                db.mute_account(acc["id"])
+                acc["is_muted"] = 1
+                acc["status"] = "muted"
                 self.pool.set_cooldown(acc["id"], 300)
+                self.pool.remove(acc["id"])
                 acc_idx += 1
                 acc_msg_count = 0
 

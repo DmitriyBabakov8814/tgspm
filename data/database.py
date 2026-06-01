@@ -133,29 +133,68 @@ def init_db():
             value TEXT NOT NULL DEFAULT ''
         );
         """)
+        _migrate_accounts(conn)
+
+
+def _migrate_accounts(conn):
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(accounts)").fetchall()}
+    if "is_muted" not in cols:
+        conn.execute("ALTER TABLE accounts ADD COLUMN is_muted INTEGER DEFAULT 0")
+    if "lolz_item_id" not in cols:
+        conn.execute("ALTER TABLE accounts ADD COLUMN lolz_item_id TEXT DEFAULT ''")
 
 
 # ── Accounts ──────────────────────────────────────────────────────────────────
+
+def account_has_session(acc: dict) -> bool:
+    """True if account has a Telethon session on disk or as string."""
+    ss = (acc.get("session_string") or "").strip()
+    if len(ss) > 20:
+        return True
+    sp = (acc.get("session_path") or "").strip()
+    if not sp:
+        return False
+    p = Path(sp)
+    if p.suffix == ".session":
+        return p.is_file()
+    return p.with_suffix(".session").is_file()
+
+
+def account_is_mailable(acc: dict) -> bool:
+    if acc.get("is_banned") or acc.get("is_muted"):
+        return False
+    if acc.get("status") not in ("active", "cooldown"):
+        return False
+    return account_has_session(acc)
+
 
 @db_operation
 def get_accounts(active_only=False):
     with get_conn() as conn:
         q = "SELECT * FROM accounts"
         if active_only:
-            q += " WHERE is_banned=0 AND status='active'"
+            q += (
+                " WHERE is_banned=0 AND COALESCE(is_muted,0)=0"
+                " AND status IN ('active', 'cooldown')"
+            )
         q += " ORDER BY id ASC"
-        return [dict(r) for r in conn.execute(q).fetchall()]
+        rows = [dict(r) for r in conn.execute(q).fetchall()]
+    if active_only:
+        return [a for a in rows if account_is_mailable(a)]
+    return rows
 
 @db_operation
 def add_account(api_id, api_hash, phone=None, session_path=None, session_string=None,
-                proxy=None, country=None, notes=None):
+                proxy=None, country=None, notes=None, status=None):
+    if status is None:
+        status = "pending"
     with get_conn() as conn:
         cur = conn.execute(
             """INSERT INTO accounts
-               (phone, api_id, api_hash, session_path, session_string, proxy, country, notes)
-               VALUES (?,?,?,?,?,?,?,?)""",
+               (phone, api_id, api_hash, session_path, session_string, proxy, country, notes, status)
+               VALUES (?,?,?,?,?,?,?,?,?)""",
             (phone, str(api_id), api_hash, session_path, session_string,
-             proxy or '', country or '', notes or '')
+             proxy or '', country or '', notes or '', status)
         )
         return cur.lastrowid
 
@@ -190,6 +229,21 @@ def reset_daily_counts():
 def ban_account(acc_id):
     with get_conn() as conn:
         conn.execute("UPDATE accounts SET is_banned=1, status='banned' WHERE id=?", (acc_id,))
+
+
+@db_operation
+def mute_account(acc_id):
+    with get_conn() as conn:
+        conn.execute("UPDATE accounts SET is_muted=1, status='muted' WHERE id=?", (acc_id,))
+
+
+@db_operation
+def account_exists_by_lolz(item_id: str) -> bool:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT id FROM accounts WHERE lolz_item_id=? LIMIT 1", (str(item_id),)
+        ).fetchone()
+        return row is not None
 
 
 # ── Contacts ──────────────────────────────────────────────────────────────────
