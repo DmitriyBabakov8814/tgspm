@@ -1,0 +1,56 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS мусор
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# SQLite / databases
+*.db
+*.sqlite3
+
+# Environment variables / secrets
+.env
+.env.*
+config.json
+secrets.json
+
+# Telegram sessions
+*.session
+sessions/
+
+# Build
+build/
+dist/
+*.egg-info/
+
+# PyInstaller
+*.spec
+
+# pytest
+.pytest_cache/
+
+# mypy
+.mypy_cache/
+
+# coverage
+.coverage
+htmlcov/
+
+# temp
+tmp/
+temp/
