@@ -40,6 +40,11 @@ python main.py
 | Умеренный | 8 | 20 | 30 |
 | Агрессивный | 4 | 10 | 50 |
 
+## Lolzteam Market API
+В боковом меню: **🛒 Lolz.market** — полный эксплорер API (80+ методов): профиль, поиск, покупка, управление товарами, Steam/Telegram, платежи, корзина, публикация и др.
+
+Токен: [lolz.live → API](https://lolz.live/account/api) со scope `market`. Вкладка **✈ TG импорт** — загрузка купленных Telegram-аккаунтов в пул.
+
 ## Прокси
 Поддерживаемые форматы:
 - `socks5://user:pass@host:port`

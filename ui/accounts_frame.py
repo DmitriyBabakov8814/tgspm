@@ -14,6 +14,13 @@ from core.my_telegram_api import MyTelegramOrgClient
 from core.errors import humanize_error
 from ui.widgets import card, lbl, ent, btn
 
+
+def _normalize_phone(phone: str) -> str:
+    phone = phone.strip()
+    if phone and not phone.startswith("+"):
+        phone = f"+{phone.lstrip('+')}"
+    return phone
+
 SESSION_DIR = Path(__file__).parent.parent / "sessions"
 SESSION_DIR.mkdir(exist_ok=True)
 
@@ -261,16 +268,25 @@ class AccountsFrame(ctk.CTkFrame):
         txt_file = folder / "accounts.txt"
         if txt_file.exists():
             for line in txt_file.read_text(encoding="utf-8").splitlines():
-                parts = line.strip().split("|")
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                parts = line.split("|")
                 if len(parts) >= 2:
-                    phone = parts[2] if len(parts) > 2 else None
-                    proxy = parts[3] if len(parts) > 3 else None
-                    acc_map[parts[0].strip()] = {
+                    phone = parts[2].strip() if len(parts) > 2 else None
+                    proxy = parts[3].strip() if len(parts) > 3 else None
+                    entry = {
                         "api_id": parts[0].strip(),
                         "api_hash": parts[1].strip(),
                         "phone": phone,
                         "proxy": proxy,
                     }
+                    if phone:
+                        keys = {phone, phone.lstrip("+")}
+                        keys.add(phone.replace("+", "").replace(" ", ""))
+                        for key in keys:
+                            if key:
+                                acc_map[key] = entry
 
         sessions = list(folder.glob("*.session"))
         if not sessions:
@@ -284,7 +300,12 @@ class AccountsFrame(ctk.CTkFrame):
             sp = str(dst.with_suffix(""))
             # Match by filename stem (often the phone number)
             stem = sf.stem
-            extra = acc_map.get(stem, {})
+            extra = (
+                acc_map.get(stem)
+                or acc_map.get(stem.lstrip("+"))
+                or acc_map.get(stem.replace("+", ""))
+                or {}
+            )
             db.add_account(
                 api_id=extra.get("api_id") or api_id,
                 api_hash=extra.get("api_hash") or api_hash,
@@ -455,7 +476,7 @@ class AccountsFrame(ctk.CTkFrame):
         self._manual_acc_id = None
 
     def _manual_send_code(self):
-        phone = self.m_phone.get().strip()
+        phone = _normalize_phone(self.m_phone.get())
         if not phone:
             messagebox.showerror("Ошибка", "Введите номер телефона")
             return
@@ -564,7 +585,7 @@ class AccountsFrame(ctk.CTkFrame):
         acc_id = db.add_account(
             api_id=api_id,
             api_hash=api_hash,
-            phone=self._manual_phone,
+            phone=_normalize_phone(self._manual_phone or ""),
             proxy=self._manual_proxy,
         )
         records = db.get_accounts()
