@@ -10,6 +10,7 @@ from ui.chats_frame import ChatsFrame
 from ui.broadcast_frame import BroadcastFrame
 from ui.parser_frame import ParserFrame
 from ui.history_frame import HistoryFrame
+from ui.lolz_frame import LolzFrame
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
@@ -21,6 +22,7 @@ NAV_ITEMS = [
     ("📤", "Рассылка"),
     ("🔍", "Парсер"),
     ("📋", "История"),
+    ("🛒", "Lolz.market"),
 ]
 
 
@@ -126,6 +128,7 @@ class App(ctk.CTk):
             3: BroadcastFrame(self.content, self),
             4: ParserFrame(self.content, self),
             5: HistoryFrame(self.content, self),
+            6: LolzFrame(self.content, self),
         }
         for f in self.frames.values():
             f.place(relx=0, rely=0, relwidth=1, relheight=1)

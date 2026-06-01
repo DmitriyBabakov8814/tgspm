@@ -116,7 +116,13 @@ class MultiAccountSender:
 
         while i < len(target_queue) and not self._stop:
             target = target_queue[i]
-            identifier = target.get("username") or target.get("phone") or target.get("user_id") or target.get("chat_id")
+            identifier = (
+                target.get("identifier")
+                or target.get("username")
+                or target.get("phone")
+                or target.get("user_id")
+                or target.get("chat_id")
+            )
             if not identifier:
                 i += 1
                 continue
