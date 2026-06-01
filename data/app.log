@@ -1,0 +1,10 @@
+2026-06-02 00:23:53,818 [ERROR] tgsender: run_async: bad argument "<function run_async.<locals>._thread.<locals>.<lambda> at 0x0000025E26C11B10>": must be cancel, idle, info, or an integer
+Traceback (most recent call last):
+  File "C:\Users\Dima\Desktop\tg_sender\core\async_runner.py", line 17, in _thread
+    on_main(lambda: callback(result, None))
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dima\AppData\Local\Programs\Python\Python314\Lib\tkinter\__init__.py", line 871, in after
+    self.tk.call('after', ms)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^
+_tkinter.TclError: bad argument "<function run_async.<locals>._thread.<locals>.<lambda> at 0x0000025E26C11B10>": must be cancel, idle, info, or an integer
+
