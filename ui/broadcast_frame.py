@@ -7,8 +7,7 @@ import threading
 from core.errors import humanize_error, log_exception
 from data import database as db
 from core.account_pool import AccountPool, MultiAccountSender
-from ui.widgets import card, lbl, ent, btn, sep
-from ui.clipboard import bind_readonly_log
+from ui.widgets import card, lbl, ent, btn, sep, txt, enable_scroll
 
 
 class BroadcastFrame(ctk.CTkFrame):
@@ -72,9 +71,7 @@ class BroadcastFrame(ctk.CTkFrame):
 
         # Message text
         lbl(left, "Текст сообщения").pack(anchor="w", pady=(0, 2))
-        self.txt_msg = ctk.CTkTextbox(left, height=130, corner_radius=8,
-            fg_color="#1a1d27", border_color="#2a2f45",
-            text_color="#e2e8f0", font=ctk.CTkFont("Helvetica", 13))
+        self.txt_msg = txt(left, height=130, font=ctk.CTkFont("Helvetica", 13))
         self.txt_msg.pack(fill="x", pady=(0, 6))
 
         lbl(left,
@@ -157,6 +154,7 @@ class BroadcastFrame(ctk.CTkFrame):
 
         self.acc_list_frame = ctk.CTkScrollableFrame(acc_card, height=120, fg_color="transparent")
         self.acc_list_frame.pack(fill="x", padx=14, pady=(0, 10))
+        enable_scroll(self.acc_list_frame)
         self._acc_checks = {}
         self._load_account_list()
 
@@ -215,17 +213,16 @@ class BroadcastFrame(ctk.CTkFrame):
             ).pack(anchor="w", padx=14, pady=(0, 4))
         self.acc_status_scroll = ctk.CTkScrollableFrame(right, height=100, fg_color="transparent")
         self.acc_status_scroll.pack(fill="x", padx=10)
+        enable_scroll(self.acc_status_scroll)
 
         sep(right)
 
         # Log
         lbl(right, "Лог", size=12, bold=True, color="#c9d1e0"
             ).pack(anchor="w", padx=14, pady=(0, 4))
-        self.log_box = ctk.CTkTextbox(right, corner_radius=8,
-            fg_color="#0d0f14", border_color="#1e2130",
-            text_color="#6b7280", font=ctk.CTkFont("Courier", 11))
+        self.log_box = txt(right, readonly=True, fg_color="#0d0f14", border_color="#1e2130",
+            text_color="#6b7280")
         self.log_box.pack(fill="both", expand=True, padx=14, pady=(0, 14))
-        bind_readonly_log(self.log_box)
 
         self.tag_colors = {"ok": "#4ade80", "err": "#f87171", "warn": "#f59e0b", "info": "#60a5fa"}
 

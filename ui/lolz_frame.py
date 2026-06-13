@@ -16,7 +16,7 @@ from core.lolz_api_registry import (
     MARKET_CATEGORIES,
 )
 from data import database as db
-from ui.widgets import card, lbl, ent, btn
+from ui.widgets import card, lbl, ent, btn, txt, enable_scroll
 
 
 class LolzFrame(ctk.CTkFrame):
@@ -139,8 +139,9 @@ class LolzFrame(ctk.CTkFrame):
         lbl(rh, "Ответ JSON", size=12, bold=True, color="#c9d1e0").pack(side="left")
         btn(rh, "Копировать", color="#1e2130", hover="#2a2f45", h=28,
             command=self._copy_response).pack(side="right")
-        self.response_box = ctk.CTkTextbox(
-            bottom, corner_radius=8, fg_color="#1a1d27", border_color="#2a2f45",
+        self.response_box = txt(
+            bottom, readonly=True,
+            fg_color="#1a1d27", border_color="#2a2f45",
             font=ctk.CTkFont("Courier", 11), text_color="#a5f3fc",
         )
         self.response_box.pack(fill="both", expand=True, padx=12, pady=(0, 12))
@@ -375,7 +376,7 @@ class LolzFrame(ctk.CTkFrame):
         win = ctk.CTkToplevel(self)
         win.title(title)
         win.geometry("700x500")
-        tb = ctk.CTkTextbox(win, font=ctk.CTkFont("Courier", 11))
+        tb = txt(win, font=ctk.CTkFont("Courier", 11))
         tb.pack(fill="both", expand=True, padx=10, pady=10)
         text = err or LolzMarketClient.format_json(data)
         tb.insert("1.0", text)

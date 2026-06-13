@@ -7,7 +7,7 @@ from core.errors import humanize_error, log_exception
 from data import database as db
 from core.tg_client import TGClient
 from core.account_pool import AccountPool, MultiAccountSender
-from ui.widgets import card, lbl, ent, btn, sep
+from ui.widgets import card, lbl, ent, btn, sep, txt, enable_scroll
 
 
 class ParserFrame(ctk.CTkFrame):
@@ -85,9 +85,7 @@ class ParserFrame(ctk.CTkFrame):
         df.pack(fill="x", padx=14)
 
         lbl(df, "Текст сообщения в ЛС").pack(anchor="w", pady=(0, 2))
-        self.txt_dm = ctk.CTkTextbox(df, height=90, corner_radius=8,
-            fg_color="#1a1d27", border_color="#2a2f45",
-            text_color="#e2e8f0", font=ctk.CTkFont("Helvetica", 12))
+        self.txt_dm = txt(df, height=90, font=ctk.CTkFont("Helvetica", 12))
         self.txt_dm.pack(fill="x", pady=(0, 8))
 
         row = ctk.CTkFrame(df, fg_color="transparent")
@@ -189,11 +187,8 @@ class ParserFrame(ctk.CTkFrame):
         filter_row.pack(fill="x", pady=(0, 8))
         self.filter_var = ctk.StringVar()
         self.filter_var.trace_add("write", lambda *_: self._load_parsed())
-        ctk.CTkEntry(filter_row, placeholder_text="🔍  Фильтр по каналу или имени...",
-            textvariable=self.filter_var, height=34, corner_radius=8,
-            fg_color="#1a1d27", border_color="#2a2f45",
-            text_color="#e2e8f0", placeholder_text_color="#4a5568"
-        ).pack(fill="x")
+        ent(filter_row, "🔍  Фильтр по каналу или имени...", textvariable=self.filter_var, height=34
+            ).pack(fill="x")
 
         # Table header
         hdr = ctk.CTkFrame(right, fg_color="#1a1d27", corner_radius=8)
@@ -206,6 +201,7 @@ class ParserFrame(ctk.CTkFrame):
 
         self.scroll = ctk.CTkScrollableFrame(right, fg_color="transparent")
         self.scroll.pack(fill="both", expand=True, pady=(4, 0))
+        enable_scroll(self.scroll)
         self._checks = {}
 
         self._dm_sender = None

@@ -11,7 +11,7 @@ from ui.broadcast_frame import BroadcastFrame
 from ui.parser_frame import ParserFrame
 from ui.history_frame import HistoryFrame
 from ui.lolz_frame import LolzFrame
-from ui.clipboard import bind_clipboard
+from ui.clipboard import bind_clipboard, bind_all_editables
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
@@ -45,6 +45,7 @@ class App(ctk.CTk):
 
         self._build_ui()
         bind_clipboard(self)
+        bind_all_editables(self)
         self._select_nav(0)
 
     def _tk_callback_error(self, exc, val, tb):

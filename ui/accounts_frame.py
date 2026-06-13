@@ -13,7 +13,7 @@ from core.tg_client import TGClient
 from core.my_telegram_api import MyTelegramOrgClient
 from core.bootstrap import resolve_bootstrap_credentials, save_bootstrap
 from core.errors import humanize_error
-from ui.widgets import card, lbl, ent, btn
+from ui.widgets import card, lbl, ent, btn, txt, page_scroll, enable_scroll
 
 
 def _normalize_phone(phone: str) -> str:
@@ -99,7 +99,7 @@ class AccountsFrame(ctk.CTkFrame):
         self._build_import_combined_tab(inner.tab("Session / файл"))
 
     def _build_import_combined_tab(self, tab):
-        scroll = ctk.CTkScrollableFrame(tab, fg_color="transparent")
+        scroll = page_scroll(tab)
         scroll.pack(fill="both", expand=True)
         self._build_string_tab(scroll)
         ctk.CTkFrame(scroll, height=1, fg_color="#1e2130").pack(fill="x", pady=16)
@@ -134,6 +134,7 @@ class AccountsFrame(ctk.CTkFrame):
 
         self.acc_scroll = ctk.CTkScrollableFrame(tab, fg_color="transparent")
         self.acc_scroll.pack(fill="both", expand=True, pady=(4, 0))
+        enable_scroll(self.acc_scroll)
 
         self._load_accounts()
 
@@ -370,9 +371,7 @@ class AccountsFrame(ctk.CTkFrame):
         # Bulk paste area
         lbl(body, "Session String (один или несколько, каждый с новой строки):",
             size=13, bold=True, color="#c9d1e0").pack(anchor="w", pady=(0, 4))
-        self.str_strings = ctk.CTkTextbox(body, height=120, corner_radius=8,
-            fg_color="#1a1d27", border_color="#2a2f45",
-            text_color="#e2e8f0", font=ctk.CTkFont("Courier", 11))
+        self.str_strings = txt(body, height=120)
         self.str_strings.pack(fill="x", pady=(0, 10))
 
         row = ctk.CTkFrame(body, fg_color="transparent")
@@ -442,8 +441,10 @@ class AccountsFrame(ctk.CTkFrame):
     # ── Tab: Manual login ─────────────────────────────────────────────────────
 
     def _build_manual_tab(self, tab):
-        wrap = card(tab)
-        wrap.pack(fill="both", expand=True, padx=4, pady=4)
+        scroll = page_scroll(tab)
+        scroll.pack(fill="both", expand=True)
+        wrap = card(scroll)
+        wrap.pack(fill="x", padx=4, pady=4)
 
         lbl(wrap, "Вход по номеру телефона", size=15, bold=True, color="#4fc3f7"
             ).pack(anchor="w", padx=20, pady=(16, 4))
@@ -481,7 +482,7 @@ class AccountsFrame(ctk.CTkFrame):
         self.m_code.pack(fill="x", pady=(4, 10))
 
         lbl(f, "Пароль 2FA — если включён", size=11, color="#64748b").pack(anchor="w")
-        self.m_2fa = ent(f, "", show="•")
+        self.m_2fa = ent(f, "пароль 2FA", show="•")
         self.m_2fa.pack(fill="x", pady=(4, 12))
 
         api_box = ctk.CTkFrame(f, fg_color="#1a1d27", corner_radius=8)
@@ -725,22 +726,22 @@ class AccountsFrame(ctk.CTkFrame):
     # ── Tab: Proxy ────────────────────────────────────────────────────────────
 
     def _build_proxy_tab(self, tab):
-        lbl(tab, "Массовое назначение прокси", size=14, bold=True, color="#4fc3f7"
+        scroll = page_scroll(tab)
+        scroll.pack(fill="both", expand=True)
+        lbl(scroll, "Массовое назначение прокси", size=14, bold=True, color="#4fc3f7"
             ).pack(anchor="w", pady=(4, 8))
-        lbl(tab,
+        lbl(scroll,
             "Формат списка: по одному прокси на строку.\nsocks5://user:pass@host:port\n\nСофт назначит прокси аккаунтам по порядку.",
             size=12, color="#8892a4", justify="left").pack(anchor="w", pady=(0, 10))
 
-        self.proxy_txt = ctk.CTkTextbox(tab, height=200, corner_radius=8,
-            fg_color="#1a1d27", border_color="#2a2f45",
-            text_color="#e2e8f0", font=ctk.CTkFont("Courier", 11))
+        self.proxy_txt = txt(scroll, height=200)
         self.proxy_txt.pack(fill="x", pady=(0, 10))
 
-        self.proxy_status = lbl(tab, "", size=12, color="#4ade80")
+        self.proxy_status = lbl(scroll, "", size=12, color="#4ade80")
         self.proxy_status.pack(anchor="w", pady=(0, 6))
 
-        btn(tab, "💾  Назначить прокси аккаунтам", command=self._assign_proxies
-            ).pack(anchor="w")
+        btn(scroll, "💾  Назначить прокси аккаунтам", command=self._assign_proxies
+            ).pack(anchor="w", pady=(0, 16))
 
     def _assign_proxies(self):
         proxies = [l.strip() for l in self.proxy_txt.get("1.0", "end").splitlines() if l.strip()]

@@ -1,8 +1,7 @@
 import customtkinter as ctk
 
 from data import database as db
-from ui.widgets import lbl as _label, btn as _btn
-from ui.clipboard import bind_readonly_log
+from ui.widgets import lbl as _label, btn as _btn, txt, enable_scroll
 
 
 STATUS_COLORS = {
@@ -60,6 +59,7 @@ class HistoryFrame(ctk.CTkFrame):
 
         self.camp_scroll = ctk.CTkScrollableFrame(left, fg_color="transparent")
         self.camp_scroll.pack(fill="both", expand=True, pady=(4, 0))
+        enable_scroll(self.camp_scroll)
 
         # ── Right: logs ───────────────────────────────────────────────────
         right = ctk.CTkFrame(body, fg_color="#13151c", corner_radius=14)
@@ -82,13 +82,12 @@ class HistoryFrame(ctk.CTkFrame):
         self.info_stats.pack(side="left")
 
         # log box
-        self.log_box = ctk.CTkTextbox(
-            right, corner_radius=8,
+        self.log_box = txt(
+            right, readonly=True,
             fg_color="#0d0f14", border_color="#1e2130",
-            text_color="#6b7280", font=ctk.CTkFont("Courier", 11),
+            text_color="#6b7280",
         )
         self.log_box.pack(fill="both", expand=True, padx=20, pady=(0, 20))
-        bind_readonly_log(self.log_box)
 
         self._load_campaigns()
 

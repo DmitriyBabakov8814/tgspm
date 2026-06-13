@@ -1,56 +1,76 @@
-# Python cache
+# ── Python ────────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
 
-# Virtual environments
+# ── Virtual environments ────────────────────────────────────────────────────
 venv/
 env/
 .venv/
+ENV/
 
-# IDE
+# ── IDE / editor ─────────────────────────────────────────────────────────────
 .vscode/
 .idea/
+*.swp
+*.swo
+.cursor/
 
-# OS мусор
+# ── OS ───────────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# Logs
+# ── Logs ─────────────────────────────────────────────────────────────────────
 *.log
+logs/
 
-# SQLite / databases
-*.db
-*.sqlite3
-
-# Environment variables / secrets
+# ── Secrets & local config (NEVER commit) ───────────────────────────────────
 .env
 .env.*
+!.env.example
+config.local.json
 config.json
 secrets.json
+bootstrap.local.json
+data/bootstrap.local.json
+**/tokens.txt
+**/api_keys.txt
 
-# Telegram sessions
+# ── Telegram sessions & personal data ───────────────────────────────────────
 *.session
+*.session-journal
 sessions/
+data/tg_sender.db
+data/tg_sender.db-*
+data/app.log
+data/*.db
+data/*.sqlite3
 
-# Build
-build/
-dist/
-*.egg-info/
+# Keep code in data/ package, ignore runtime files only
+data/*
+!data/__init__.py
+!data/database.py
+!data/.gitkeep
 
-# PyInstaller
+# ── PyInstaller / packaging ─────────────────────────────────────────────────
 *.spec
 
-# pytest
+# ── Testing / tooling ─────────────────────────────────────────────────────────
 .pytest_cache/
-
-# mypy
 .mypy_cache/
-
-# coverage
 .coverage
 htmlcov/
-
-# temp
 tmp/
 temp/
+
+# ── User-generated exports ────────────────────────────────────────────────────
+exports/
+backups/
+downloads/
